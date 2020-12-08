@@ -1,0 +1,718 @@
+from pyspark.ml.linalg import Vectors
+from pyspark.ml.classification import LogisticRegression,LogisticRegressionModel,GBTClassifier
+from pyspark.ml.feature import StringIndexer
+from numpy import allclose
+from pyspark.sql import Row
+from pyspark.sql.types import *
+import pyspark.sql.functions as F
+import numpy as np
+import pandas as pd
+import random
+from pyspark.ml.classification import RandomForestClassifier
+from pyspark.sql.types import IntegerType
+from pyspark.ml.feature import VectorAssembler
+from pyspark.sql.functions import lit
+from sklearn import metrics
+from pyspark.ml.classification import NaiveBayes
+from pyspark.ml.classification import LinearSVC
+import time
+from sklearn.metrics import precision_recall_curve, average_precision_score, auc
+import matplotlib.pyplot as plt
+
+#店铺A1
+url1='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/553f1e80112911eb82dbfa163ec071ae.csv'
+url2='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/da1aef7e112b11eb9bc3fa163ee183b8.csv'
+url3='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b3205842112a11ebb0dbfa163ec071ae.csv'
+url4='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/d41cef00112b11ebb0dbfa163ec071ae.csv'
+url5='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6d041844112a11eb9814fa163ec071ae.csv'
+url6='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/25c62e20112c11eb9dd1fa163ee183b8.csv'
+url7='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/d2cc7a08112b11eb82dbfa163ec071ae.csv'
+url8='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/fa5e5cc2112a11ebb947fa163ee183b8.csv'
+url9='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/a7f4f624112c11eb9dd1fa163ee183b8.csv'
+url10='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/297b24aa112a11eb82dbfa163ec071ae.csv'
+url11='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/8eed1126112b11eb9814fa163ec071ae.csv'
+url12='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/d68041ac112b11eb9bc3fa163ee183b8.csv'
+url13='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/794aa098112811eb9608fa163ee183b8.csv'
+url14='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/979e3d6a112911ebaf8afa163ee183b8.csv'
+url15='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/c686733c112811ebb896fa163ee183b8.csv'
+url16='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/ed233d96112711eb9608fa163ee183b8.csv'
+url17='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/0b795a86112911eb9814fa163ec071ae.csv'
+url18='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b80fd850112a11ebaf8afa163ee183b8.csv'
+
+#店铺A2
+url20='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/3415df88112d11eba14afa163ee183b8.csv'
+url21='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/a882d21e112c11ebb947fa163ee183b8.csv'
+url22='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/5d77f56a112c11ebb896fa163ee183b8.csv'
+url23='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/a52dbdae112c11eb8fc2fa163ec071ae.csv'
+url24='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/a9268df0112c11eb9814fa163ec071ae.csv'
+url25='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/a55c79dc112c11eb9608fa163ee183b8.csv'
+url26='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/346b9fe0112d11ebb947fa163ee183b8.csv'
+url27='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/7bbf851e112d11eb82dbfa163ec071ae.csv'
+url28='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/5da15298112c11ebb0dbfa163ec071ae.csv'
+url29='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/7b74b80e112d11eb9608fa163ee183b8.csv'
+url30='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/a5b72a26112c11ebaf8afa163ee183b8.csv'
+url31='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/a59d1eba112c11eb82dbfa163ec071ae.csv'
+url32='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/9fc340a0112711eb82dbfa163ec071ae.csv'
+url33='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/e50d4732112711ebb947fa163ee183b8.csv'
+url34='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/9edf3310112711eb8e61fa163ec071ae.csv'
+url35='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/74cdbd7a112811eb8fc2fa163ec071ae.csv'
+url36='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/0f36ee6a112711eba13cfa163ee183b8.csv'
+url37='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/74c0ae96112811eb9814fa163ec071ae.csv'
+
+
+#店铺A3
+url41='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/7c76956a112d11eb9dd1fa163ee183b8.csv'
+url42='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/d63ba1a0113011eb8e61fa163ec071ae.csv'
+url43='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/e133d20a112e11eb8efafa163ec071ae.csv'
+url44='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/46d8fa58113011ebb896fa163ee183b8.csv'
+url45='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/7040f9aa112f11eb9bc3fa163ee183b8.csv'
+url46='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/ff68f51a112f11eb9814fa163ec071ae.csv'
+url47='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/704b98d8112f11eb9814fa163ec071ae.csv'
+url48='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/28f0fb7c112f11eb9dd1fa163ee183b8.csv'
+url49='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/46f35baa113011ebb947fa163ee183b8.csv'
+url50='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/707af524112f11eb9608fa163ee183b8.csv'
+url51='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b868fee4112f11eb8a6ffa163ec071ae.csv'
+url52='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/ff75321c112f11eb9814fa163ec071ae.csv'
+url53='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/4ae4f842112911eb82dbfa163ec071ae.csv'
+url54='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2c99a8a2112811eba13cfa163ee183b8.csv'
+url55='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2126d8f8112a11ebb896fa163ee183b8.csv'
+url56='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/5725aeb4112711eb8e61fa163ec071ae.csv'
+url57='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/e5a528ea112711eb9dd1fa163ee183b8.csv'
+url58='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/0f64793e112711eb889bfa163ec071ae.csv'
+
+#店铺A4
+url59='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/3b742bf4113211ebb896fa163ee183b8.csv'
+url60='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/1d4bd5ba113111eb8fc2fa163ec071ae.csv'
+url61='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/ac429c9a113111ebaf8afa163ee183b8.csv'
+url62='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/d5f790dc113011eb9814fa163ec071ae.csv'
+url63='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/f3efa5ec113111ebaf8afa163ee183b8.csv'
+url64='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/8e5d77fa113011eba13cfa163ee183b8.csv'
+url65='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/e07466fe115b11eb889bfa163ec071ae.csv'
+url66='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/8ef52280113011eb8fc2fa163ec071ae.csv'
+url67='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/1d56d0a0113111ebb896fa163ee183b8.csv'
+url68='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/ac3c04a2113111eb8e61fa163ec071ae.csv'
+url69='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64aae3e2113111ebb0dbfa163ec071ae.csv'
+url70='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/f3e68570113111eb9814fa163ec071ae.csv'
+url71='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/0377d740112911eb889bfa163ec071ae.csv'
+url72='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/afff5d70112a11ebb896fa163ee183b8.csv'
+url73='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/925b0c02112911eb9bc3fa163ee183b8.csv'
+url74='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/bbdfdea0112811eb9608fa163ee183b8.csv'
+url75='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/f7a189be112a11eba13cfa163ee183b8.csv'
+url76='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/f7d883ec112a11eb82dbfa163ec071ae.csv'
+
+def read_data(file): #数据导入函数
+    print("[*] Read data from {}".format(file))
+    df = spark.read.csv(file,header='true')
+    return df
+
+
+# for i in range(1,19):
+#     globals()['a1dp{0}'.format(i)]=read_data(globals()['url{0}'.format(i)])
+
+# 店铺A1
+for i in range(1, 19):
+    locals()['a1dp{0}'.format(i)] = read_data(locals()['url{0}'.format(i)])
+
+# 店铺A2
+for i in range(20, 38):
+    locals()['a2dp{0}'.format(i - 19)] = read_data(locals()['url{0}'.format(i)])
+
+# 店铺A3
+for i in range(41, 59):
+    locals()['a3dp{0}'.format(i - 40)] = read_data(locals()['url{0}'.format(i)])
+
+# 店铺A4
+for i in range(59, 77):
+    locals()['a4dp{0}'.format(i - 58)] = read_data(locals()['url{0}'.format(i)])
+
+# A3【并】 A4
+for i in range(1, 19):
+    locals()['a34dp{0}'.format(i)] = locals()['a3dp{0}'.format(i)].union(locals()['a4dp{0}'.format(i)]).distinct()
+
+# 每三个月一组A1（命名格式：3MA1_数字）
+for i in range(1, 17):
+    locals()['3MA1_{0}'.format(i)] = locals()['a1dp{0}'.format(i)].union(locals()['a1dp{0}'.format(i + 1)]).union(
+        locals()['a1dp{0}'.format(i + 2)]).distinct()
+
+# 每三个月一组A2（命名格式：3MA2_数字）
+for i in range(1, 17):
+    locals()['3MA2_{0}'.format(i)] = locals()['a2dp{0}'.format(i)].union(locals()['a2dp{0}'.format(i + 1)]).union(
+        locals()['a2dp{0}'.format(i + 2)]).distinct()
+
+# 每三个月一组A1&A2（命名格式：3MA12_数字）
+for i in range(1, 17):
+    locals()['3MA12_{0}'.format(i)] = locals()['3MA1_{0}'.format(i)].union(locals()['3MA2_{0}'.format(i)]).distinct()
+
+# 每三个月一组A3&A4（命名格式：3MA34_数字）
+for i in range(1, 17):  # 3MA3A4_
+    locals()['3MA34_{0}'.format(i)] = locals()['a34dp{0}'.format(i)].union(locals()['a34dp{0}'.format(i + 1)]).union(
+        locals()['a34dp{0}'.format(i + 2)]).distinct()
+
+# 每三个月一组4A（命名格式：3MA1234_数字）
+for i in range(1, 17):
+    locals()['3MA1234_{0}'.format(i)] = locals()['3MA1_{0}'.format(i)].union(locals()['3MA2_{0}'.format(i)]).union(
+        locals()['3MA34_{0}'.format(i)]).distinct()
+
+# 每六个月一组4A（命名格式：6MA1234_数字）
+for i in range(1, 13):  # 6MA1234_
+    locals()['6MA1234_{0}'.format(i)] = locals()['3MA1234_{0}'.format(i)].union(
+        locals()['3MA1234_{0}'.format(i + 3)]).distinct()
+
+# 每三个月一组A234（命名格式：3MA234_数字）
+for i in range(1, 17):
+    locals()['3MA234_{0}'.format(i)] = locals()['3MA2_{0}'.format(i)].union(locals()['3MA34_{0}'.format(i)]).distinct()
+
+# P3MA1（命名格式： #P3MA1_数字）
+for i in range(1, 17):  # P3MA1_
+    locals()['P3MA1_{0}'.format(i)] = locals()['3MA1_{0}'.format(i)].subtract(locals()['3MA234_{0}'.format(i)])
+
+# P3MA2（命名格式： #P3MA2_数字）
+for i in range(1, 17):
+    locals()['P3MA2_{0}'.format(i)] = locals()['3MA2_{0}'.format(i)].subtract(locals()['3MA34_{0}'.format(i)])
+
+# CA2（命名格式： #CA2_数字）
+for i in range(1, 13):
+    locals()['CA2_{0}'.format(i)] = locals()['a2dp{0}'.format(i + 6)].subtract(locals()['6MA1234_{0}'.format(i)])
+
+# CA1（命名格式： #CA1_数字）
+for i in range(1, 13):
+    locals()['CA1_{0}'.format(i)] = locals()['a1dp{0}'.format(i + 6)].subtract(
+        locals()['6MA1234_{0}'.format(i)]).subtract(locals()['CA2_{0}'.format(i)])
+
+# CA0
+
+# 当月的A1&A2（命名格式：d12_数字）
+for i in range(7, 19):
+    locals()['d12_{0}'.format(i)] = locals()['a1dp{0}'.format(i)].union(locals()['a2dp{0}'.format(i)])
+
+# 当月的A3&A4（命名格式：d34_数字）
+for i in range(7, 19):
+    locals()['d34_{0}'.format(i)] = locals()['a3dp{0}'.format(i)].union(locals()['a4dp{0}'.format(i)])
+
+    # A0 （命名格式：CA0_）
+for i in range(7, 19):
+    locals()['CA0_{0}'.format(i - 6)] = locals()['d34_{0}'.format(i)].subtract(locals()['d12_{0}'.format(i)]).subtract(
+        locals()['6MA1234_{0}'.format(i - 6)])
+
+# P3MA1
+result = []
+for i in range(1, 17):
+    df1 = globals()['P3MA1_{0}'.format(i)]
+    res = [df1.count()]
+    print(res)
+    result.append(res)
+result = pd.DataFrame(result, columns=['P3MA1'])
+result
+
+# P3MA2
+result = []
+for i in range(1, 17):
+    df1 = globals()['P3MA2_{0}'.format(i)]
+    res = [df1.count()]
+    print(res)
+    result.append(res)
+result = pd.DataFrame(result, columns=['P3MA2'])
+result
+
+# CA2
+result = []
+for i in range(1, 12):
+    df1 = globals()['CA2_{0}'.format(i)]
+    res = [df1.count()]
+    print(res)
+    result.append(res)
+result = pd.DataFrame(result, columns=['CA2'])
+result
+
+# CA1
+result = []
+for i in range(1, 13):
+    df1 = globals()['CA1_{0}'.format(i)]
+    res = [df1.count()]
+    print(res)
+    result.append(res)
+result = pd.DataFrame(result, columns=['CA1'])
+result
+
+# A0
+result = []
+for i in range(1, 13):
+    df1 = globals()['CA0_{0}'.format(i)]
+    res = [df1.count()]
+    print(res)
+    result.append(res)
+result = pd.DataFrame(result, columns=['A0'])
+result
+
+#############GCS1-浏览
+url1='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2ab17f36115c11ebaf8afa163ee183b8.csv'
+url2='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b5daf7d6115c11ebb896fa163ee183b8.csv'
+url3='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b591e7e4115c11ebaf8afa163ee183b8.csv'
+url4='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6f55af4a115c11eb9608fa163ee183b8.csv'
+url5='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/60bc6a94115e11eb889bfa163ec071ae.csv'
+url6='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6f488c16115c11eb8e61fa163ec071ae.csv'
+url7='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6134fcde115e11eb9dd1fa163ee183b8.csv'
+url8='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b5c66dc0115c11ebb896fa163ee183b8.csv'
+url9='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/618d06fe115e11eb9bc3fa163ee183b8.csv'
+url10='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6f9d9fda115c11eb8e61fa163ec071ae.csv'
+url11='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/613b5c64115e11eba13cfa163ee183b8.csv'
+url12='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b6011164115c11eb8efafa163ec071ae.csv'
+
+for i in range(1,13):
+    globals()['LHs1_ll_{0}'.format(i)]=read_data(globals()['url{0}'.format(i)])
+
+#############GCS1-购买            1910开始，ub+3，没2001，01=02去掉01
+url1='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/61b336b2115e11ebb0dbfa163ec071ae.csv'
+url2='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/61b336b2115e11ebb0dbfa163ec071ae.csv'
+url3='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/61b336b2115e11ebb0dbfa163ec071ae.csv'
+url4='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/61b336b2115e11ebb0dbfa163ec071ae.csv'
+url5='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2b35e406115c11eb9dd1fa163ee183b8.csv'
+url6='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/70b503fe115c11eb8e61fa163ec071ae.csv'
+url7='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6e51270c129f11eb92d0fa163ee183b8.csv'
+url8='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/70ea2dd6115c11ebb947fa163ee183b8.csv'
+url9='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/70d0712a115c11eba13cfa163ee183b8.csv'
+url10='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b6e3714e115c11eb9dd1fa163ee183b8.csv'
+url11='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2b88984a115c11eba13cfa163ee183b8.csv'
+url12='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/7132b7d6115c11eb889bfa163ec071ae.csv'
+
+for i in range(1,13):
+    globals()['LHs1_gm_{0}'.format(i)]=read_data(globals()['url{0}'.format(i)])
+
+#############GCS3-浏览             1908开始，ub+1，没有1912
+url1='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6d25f9ca129f11ebaa7ffa163ee183b8.csv'
+url2='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6212fdf4115e11eb9bc3fa163ee183b8.csv'
+url3='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/621632f8115e11eba13cfa163ee183b8.csv'
+url4='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/71a419a8115c11ebb896fa163ee183b8.csv'
+url5='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b8737c3e115c11eba13cfa163ee183b8.csv'
+url6='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/15dfde9a12a111eb9c01fa163ec071ae.csv'
+url7='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6298d85c115e11eb8fc2fa163ec071ae.csv'
+url8='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/62ae4304115e11eb9bc3fa163ee183b8.csv'
+url9='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/71dcedb4115c11eb8efafa163ec071ae.csv'
+url10='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/62f0fb0e115e11eb9814fa163ec071ae.csv'
+url11='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/636e87cc115e11eb889bfa163ec071ae.csv'
+url12='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/639754ea115e11eb8a6ffa163ec071ae.csv'
+
+for i in range(1,13):
+    globals()['LHs3_ll_{0}'.format(i)]=read_data(globals()['url{0}'.format(i)])
+
+#############GCS3-购买              1911开始，ub+4，没有1912、2001、2003
+url1='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64e82928115e11eb9bc3fa163ee183b8.csv'
+url2='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64e82928115e11eb9bc3fa163ee183b8.csv'
+url3='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64e82928115e11eb9bc3fa163ee183b8.csv'
+url4='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64e82928115e11eb9bc3fa163ee183b8.csv'
+url5='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64e82928115e11eb9bc3fa163ee183b8.csv'
+url6='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64e82928115e11eb9bc3fa163ee183b8.csv'
+url7='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/64e82928115e11eb9bc3fa163ee183b8.csv'
+url8='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/7264a3a8115c11eb8fc2fa163ec071ae.csv'
+url9='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/92f716d0129e11ebb867fa163ec071ae.csv'
+url10='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b957d08c115c11eb9608fa163ee183b8.csv'
+url11='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/642d5274115e11eba14afa163ee183b8.csv'
+url12='s3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6521985c115e11eb8e61fa163ec071ae.csv'
+
+for i in range(1,13):
+    globals()['LHs3_gm_{0}'.format(i)]=read_data(globals()['url{0}'.format(i)])
+
+###############GCTTL-浏览    ok
+url1 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/290fcd4a115c11eb8e61fa163ec071ae.csv'
+url2 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/29349a30115c11ebb896fa163ee183b8.csv'
+url3 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2906ab66115c11eb82dbfa163ec071ae.csv'
+url4 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b43655b0115c11eb82dbfa163ec071ae.csv'
+url5 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6dd3eed4115c11eb9dd1fa163ee183b8.csv'
+url6 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b429138c115c11eb889bfa163ec071ae.csv'
+url7 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/296418d2115c11eba13cfa163ee183b8.csv'
+url8 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/53da1222115e11ebb947fa163ee183b8.csv'
+url9 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/604d45ce115e11eb82dbfa163ec071ae.csv'
+url10 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6d94e02c115c11eba14afa163ee183b8.csv'
+url11 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6dbd602e115c11ebaf8afa163ee183b8.csv'
+url12 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6dbcfa26115c11eb9608fa163ee183b8.csv'
+for i in range(1, 13):
+    globals()['LHttl_ll_{0}'.format(i)] = read_data(globals()['url{0}'.format(i)])
+
+#############GCTTL-购买
+url1 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/29ab6e8a115c11eb82dbfa163ec071ae.csv'
+url2 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/e0802804115b11eb9608fa163ee183b8.csv'
+url3 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b4ad7096115c11ebb896fa163ee183b8.csv'
+url4 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b4f4daa8115c11eb8fc2fa163ec071ae.csv'
+url5 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/6e9ba5a0115c11ebb947fa163ee183b8.csv'
+url6 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/b5033134115c11eba14afa163ee183b8.csv'
+url7 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2a125320115c11eb9bc3fa163ee183b8.csv'
+url8 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2a4cebac115c11eb8fc2fa163ec071ae.csv'
+url9 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2a35b680115c11eb9dd1fa163ee183b8.csv'
+url10 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2a4ad858115c11eb8e61fa163ec071ae.csv'
+url11 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2a64ef04115c11eba13cfa163ee183b8.csv'
+url12 = 's3a://b51a15bf20564d54f154a807f42e6a59/readonly/sf/2ac7bbca115c11eb8a6ffa163ec071ae.csv'
+for i in range(1, 13):
+    globals()['LHttl_gm_{0}'.format(i)] = read_data(globals()['url{0}'.format(i)])
+
+# P3MA1交 产品线浏览
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_lln_{0}'.format(i)] = globals()['P3MA1_{0}'.format(i + 3)].intersect(
+        globals()['LHttl_ll_{0}'.format(i)])
+    df1 = globals()['LHttl_lln_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_lln_{0}'.format(i)] = globals()['P3MA1_{0}'.format(i + 3)].intersect(
+        globals()['LHs1_ll_{0}'.format(i)])
+    df1 = globals()['LHs1_lln_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_lln_{0}'.format(i)] = globals()['P3MA1_{0}'.format(i + 3)].intersect(
+        globals()['LHs3_ll_{0}'.format(i)])
+    df1 = globals()['LHs3_lln_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['P3MA1交LHS1浏览'] = result2
+result['P3MA1交LHS3浏览'] = result4
+result['P3MA1交LHTTL浏览'] = result5
+
+result
+
+# P3MA1交 购买
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_gmn_{0}'.format(i)] = globals()['P3MA1_{0}'.format(i + 3)].intersect(
+        globals()['LHttl_gm_{0}'.format(i)])
+    df1 = globals()['LHttl_gmn_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_gmn_{0}'.format(i)] = globals()['P3MA1_{0}'.format(i + 3)].intersect(
+        globals()['LHs1_gm_{0}'.format(i)])
+    df1 = globals()['LHs1_gmn_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_gmn_{0}'.format(i)] = globals()['P3MA1_{0}'.format(i + 3)].intersect(
+        globals()['LHs3_gm_{0}'.format(i)])
+    df1 = globals()['LHs3_gmn_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['P3MA1交LHS1购买'] = result2
+
+result['P3MA1交HLS3购买'] = result4
+result['P3MA1交LHTTL购买'] = result5
+
+result
+
+# P3MA2交 店铺浏览 从7月开始
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_lln_{0}'.format(i)] = globals()['P3MA2_{0}'.format(i + 3)].intersect(
+        globals()['LHttl_ll_{0}'.format(i)])
+    df1 = globals()['LHttl_lln_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_lln_{0}'.format(i)] = globals()['P3MA2_{0}'.format(i + 3)].intersect(
+        globals()['LHs1_ll_{0}'.format(i)])
+    df1 = globals()['LHs1_lln_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_lln_{0}'.format(i)] = globals()['P3MA2_{0}'.format(i + 3)].intersect(
+        globals()['LHs3_ll_{0}'.format(i)])
+    df1 = globals()['LHs3_lln_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['P3MA2交LHS1浏览'] = result2
+
+result['P3MA2交LHS3浏览'] = result4
+result['P3MA2交LHTTL浏览'] = result5
+
+result
+
+# P3MA2交 店铺购买
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_gmn_{0}'.format(i)] = globals()['P3MA2_{0}'.format(i + 3)].intersect(
+        globals()['LHttl_gm_{0}'.format(i)])
+    df1 = globals()['LHttl_gmn_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_gmn_{0}'.format(i)] = globals()['P3MA2_{0}'.format(i + 3)].intersect(
+        globals()['LHs1_gm_{0}'.format(i)])
+    df1 = globals()['LHs1_gmn_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_gmn_{0}'.format(i)] = globals()['P3MA2_{0}'.format(i + 3)].intersect(
+        globals()['LHs3_gm_{0}'.format(i)])
+    df1 = globals()['LHs3_gmn_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['P3MA2交LHS1购买'] = result2
+
+result['P3MA2交LHS3购买'] = result4
+result['P3MA2交LHTTL购买'] = result5
+
+result
+
+# CA1交 店铺购买
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_gmn_{0}'.format(i)] = globals()['CA1_{0}'.format(i)].intersect(globals()['LHttl_gm_{0}'.format(i)])
+    df1 = globals()['LHttl_gmn_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_gmn_{0}'.format(i)] = globals()['CA1_{0}'.format(i)].intersect(globals()['LHs1_gm_{0}'.format(i)])
+    df1 = globals()['LHs1_gmn_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_gmn_{0}'.format(i)] = globals()['CA1_{0}'.format(i)].intersect(globals()['LHs3_gm_{0}'.format(i)])
+    df1 = globals()['LHs3_gmn_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['CA1交LHS1购买'] = result2
+
+result['CA1交LHS3购买'] = result4
+result['CA1交LHTTL购买'] = result5
+
+result
+
+# CA1交 浏览 从7月开始
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_lln_{0}'.format(i)] = globals()['CA1_{0}'.format(i)].intersect(globals()['LHttl_ll_{0}'.format(i)])
+    df1 = globals()['LHttl_lln_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_lln_{0}'.format(i)] = globals()['CA1_{0}'.format(i)].intersect(globals()['LHs1_ll_{0}'.format(i)])
+    df1 = globals()['LHs1_lln_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_lln_{0}'.format(i)] = globals()['CA1_{0}'.format(i)].intersect(globals()['LHs3_ll_{0}'.format(i)])
+    df1 = globals()['LHs3_lln_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['CA1交LHS1浏览'] = result2
+
+result['CA1交LHS3浏览'] = result4
+result['CA1交LHTTL浏览'] = result5
+
+result
+
+# CA2交 店铺购买
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_gmn_{0}'.format(i)] = globals()['CA2_{0}'.format(i)].intersect(globals()['LHttl_gm_{0}'.format(i)])
+    df1 = globals()['LHttl_gmn_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_gmn_{0}'.format(i)] = globals()['CA2_{0}'.format(i)].intersect(globals()['LHs1_gm_{0}'.format(i)])
+    df1 = globals()['LHs1_gmn_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_gmn_{0}'.format(i)] = globals()['CA2_{0}'.format(i)].intersect(globals()['LHs3_gm_{0}'.format(i)])
+    df1 = globals()['LHs3_gmn_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['CA2交LHS1购买'] = result2
+
+result['CA2交LHS3购买'] = result4
+result['CA2交LHTTL购买'] = result5
+
+result
+
+# CA2交 浏览 从7月开始
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_lln_{0}'.format(i)] = globals()['CA2_{0}'.format(i)].intersect(globals()['LHttl_ll_{0}'.format(i)])
+    df1 = globals()['LHttl_lln_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_lln_{0}'.format(i)] = globals()['CA2_{0}'.format(i)].intersect(globals()['LHs1_ll_{0}'.format(i)])
+    df1 = globals()['LHs1_lln_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_lln_{0}'.format(i)] = globals()['CA2_{0}'.format(i)].intersect(globals()['LHs3_ll_{0}'.format(i)])
+    df1 = globals()['LHs3_lln_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['CA2交LHS1浏览'] = result2
+
+result['CA2交LHS3浏览'] = result4
+result['CA2交LHTTL浏览'] = result5
+
+result
+
+# CA0交 浏览 从7月开始
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+
+for i in range(1, 13):
+    globals()['LHttl_lln_{0}'.format(i)] = globals()['CA0_{0}'.format(i)].intersect(globals()['LHttl_ll_{0}'.format(i)])
+    df1 = globals()['LHttl_lln_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+for i in range(1, 13):
+    globals()['LHs1_lln_{0}'.format(i)] = globals()['CA0_{0}'.format(i)].intersect(globals()['LHs1_ll_{0}'.format(i)])
+    df1 = globals()['LHs1_lln_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+for i in range(1, 13):
+    globals()['LHs3_lln_{0}'.format(i)] = globals()['CA0_{0}'.format(i)].intersect(globals()['LHs3_ll_{0}'.format(i)])
+    df1 = globals()['LHs3_lln_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['CA0交LHS1浏览'] = result2
+
+result['CA0交LHS3浏览'] = result4
+result['CA0交LHttl浏览'] = result5
+
+result
+
+# CA0交 店铺购买
+result1 = []
+result2 = []
+result3 = []
+result4 = []
+result5 = []
+result6 = []
+for i in range(1, 13):
+    globals()['LHttl_gmn_{0}'.format(i)] = globals()['CA0_{0}'.format(i)].intersect(globals()['LHttl_gm_{0}'.format(i)])
+    df1 = globals()['LHttl_gmn_{0}'.format(i)]
+    res5 = [df1.count()]
+    print(res5)
+    result5.append(res5)
+
+    globals()['LHs1_gmn_{0}'.format(i)] = globals()['CA0_{0}'.format(i)].intersect(globals()['LHs1_gm_{0}'.format(i)])
+    df1 = globals()['LHs1_gmn_{0}'.format(i)]
+    res2 = [df1.count()]
+    print(res2)
+    result2.append(res2)
+
+    globals()['LHs3_gmn_{0}'.format(i)] = globals()['CA0_{0}'.format(i)].intersect(globals()['LHs3_gm_{0}'.format(i)])
+    df1 = globals()['LHs3_gmn_{0}'.format(i)]
+    res4 = [df1.count()]
+    print(res4)
+    result4.append(res4)
+
+result = pd.DataFrame()
+
+result['CA0交LHS1购买'] = result2
+
+result['CA0交LHS3购买'] = result4
+
+result['CA0交LHS4购买'] = result6
+result
+
+
+
+
+
+
+
+
+
